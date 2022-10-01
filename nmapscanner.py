@@ -132,7 +132,9 @@ def nmap_prefix(
         friendly_nmap_cmd = " ".join(nmap_cmd)
         LOG.info(f"{ipnet} -{custom}'{friendly_nmap_cmd}' starting")
         try:
-            LOG.debug(run(nmap_cmd, stdout=PIPE, stderr=PIPE, timeout=timeout, check=True))
+            LOG.debug(
+                run(nmap_cmd, stdout=PIPE, stderr=PIPE, timeout=timeout, check=True)
+            )
         except SubprocessError as spe:
             LOG.error(f"{ipnet} - '{nmap_cmd}' FAILED: {spe}")
             err += 1
