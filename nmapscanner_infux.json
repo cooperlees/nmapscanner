@@ -1,0 +1,9 @@
+{
+    "url": "http://10.251.254.25:8086",
+    "token": "foo",
+    "org": "clc",
+    "bucket": "nmapscanner_test",
+    "debug": true,
+    "timeout": 10000,
+    "gzip": true
+}
