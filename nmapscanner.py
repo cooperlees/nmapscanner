@@ -23,6 +23,7 @@ from libnmap.parser import NmapParser  # type: ignore
 
 DF = "%Y%m%d%H%M%S"
 LOG = logging.getLogger(__name__)
+OUTPUT_FORMATS = ("influxdb", "json")
 
 
 def _handle_debug(
@@ -196,9 +197,7 @@ def run_nmap(
 
 
 def write_to_json_files(output_path: Path) -> int:
-    """Temp function to output the scan resilt to JSON
-    TODO: Come up with support for multiple data sources
-    e.g. SQL DB, MongoDB, Prometheus etc."""
+    """Output the scan result to JSON files"""
     fails = 0
     for afile in output_path.iterdir():
         if not afile.is_file() or afile.name.endswith(".json"):
@@ -215,6 +214,19 @@ def write_to_json_files(output_path: Path) -> int:
             fails += 1
 
     return fails
+
+
+def write_output(output_format: str, output_path: Path) -> int:
+    match output_format:
+        case "json":
+            return write_to_json_files(output_path)
+        case "influx":
+            LOG.error("Not finished ... To come in a commit soon ...")
+        case other:
+            LOG.error(
+                f"{other} is an invalid unsupported output format. Fix CLI arguments"
+            )
+    return 69
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -258,7 +270,16 @@ def write_to_json_files(output_path: Path) -> int:
     "--output-dir",
     default=f"{gettempdir()}{sep}nmapscanner_run_{datetime.now().strftime(DF)}",
     show_default=True,
-    help="Where should we store nmap output",
+    help=(
+        "Where should we store nmap output (XML + optional file output formats "
+        + "e.g. json)"
+    ),
+)
+@click.option(
+    "--output-format",
+    default="json",
+    show_default=True,
+    help=f"Where should port status be saved. Options: {','.join(sorted(OUTPUT_FORMATS))}",
 )
 @click.argument("prefixes", nargs=-1)
 @click.pass_context
@@ -271,6 +292,7 @@ def main(
     nmap_opts: Optional[str],
     nmap_timeout: int,
     output_dir: str,
+    output_format: str,
     prefixes: List[str],
 ) -> None:
     nmap_path = Path(nmap)
@@ -280,6 +302,10 @@ def main(
         )
         ctx.exit(69)
 
+    if not prefixes:
+        LOG.error("Need some prefixes to scan please")
+        ctx.exit(70)
+
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
     LOG.debug(f"nmap output will go to {output_path}")
@@ -287,7 +313,7 @@ def main(
     run_nmap(
         prefixes, output_path, atonce, nmap_path, nmap_timeout, nmap_opts, all_ports
     )
-    ctx.exit(write_to_json_files(output_path))
+    ctx.exit(write_output(output_format, output_path))
 
 
 if __name__ == "__main__":
