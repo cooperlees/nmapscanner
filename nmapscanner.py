@@ -292,7 +292,10 @@ def write_to_influxdb(
 def write_output(output_format: str, output_path: Path, output_config_file: str) -> int:
     match output_format:
         case "json":
-            return write_to_json_files(output_path)
+            errors = write_to_json_files(output_path)
+            if not errors:
+                print(f"--> JSON files written to {output_path}")
+            return errors
         case "influxdb":
             output_config_path = Path(output_config_file)
             if not output_config_path.exists():
