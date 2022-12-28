@@ -16,8 +16,6 @@ from time import time
 from typing import Dict, List, Optional, Union
 
 import click
-
-# TODO: Workout why mypy can not find this module
 from libnmap.parser import NmapParser  # type: ignore
 
 
@@ -72,6 +70,15 @@ def get_nmap_result(nmap_xml_file: Path) -> Dict:
     return nmap_data
 
 
+def load_json_file(jf: Path) -> Dict:
+    try:
+        with jf.open("r") as jfp:
+            return json.load(jfp)
+    except (json.JSONDecodeError, OSError):
+        LOG.exception(f"Failure to load {jf}")
+    return {}
+
+
 def sanitize_filename(filename: str) -> str:
     return filename.replace("/", "_")
 
@@ -85,7 +92,7 @@ def generate_nmap_cmd(
     all_ports: bool,
 ) -> List[List[str]]:
     nmap_cmds: List[List[str]] = []
-    nmap_base_cmd = [str(nmap)]
+    nmap_base_cmd = [str(nmap), "-T5"]
     if ipnet.version == 6:
         nmap_base_cmd.append("-6")
 
@@ -137,7 +144,8 @@ def nmap_prefix(
                 run(nmap_cmd, stdout=PIPE, stderr=PIPE, timeout=timeout, check=True)
             )
         except SubprocessError as spe:
-            LOG.error(f"{ipnet} - '{nmap_cmd}' FAILED: {spe}")
+            LOG.error(f"{ipnet} - \"{' '.join(nmap_cmd)}\" FAILED: {spe}")
+            LOG.debug("Are you running as root / with capabilities?")
             err += 1
             continue
 
@@ -155,7 +163,7 @@ def run_nmap(
     nmap_timeout: int,
     nmap_opts: Optional[str],
     all_ports: bool,
-) -> None:
+) -> int:
     nmap_futures = []
 
     shell_safe_extra_ops: List[str] = []
@@ -187,24 +195,33 @@ def run_nmap(
             else:
                 success += 1
 
-            done = success + fail
-            LOG.debug(f"{done} / {total} completed ... ({done / total * 100}%)")
+        if success < 1:
+            LOG.error("No nmap scans completed ... Giving up!")
+            return 1
 
         success_pct = int((success / total) * 100)
         LOG.info(
             f"{success} / {total} ({success_pct}%) nmap scans succeeded ({fail} failed)"
         )
+        return 0
+
+
+def _check_afile_and_parse(afile: Path) -> Dict:
+    if not afile.is_file() or afile.name.endswith(".json"):
+        return {}
+
+    # Write out JSON along side ugly XML
+    return get_nmap_result(afile)
 
 
 def write_to_json_files(output_path: Path) -> int:
     """Output the scan result to JSON files"""
     fails = 0
     for afile in output_path.iterdir():
-        if not afile.is_file() or afile.name.endswith(".json"):
+        json_results = _check_afile_and_parse(afile)
+        if not json_results:
             continue
 
-        # Write out JSON along side ugly XML
-        json_results = get_nmap_result(afile)
         new_json_file = output_path / f"{afile.name}.json"
         try:
             with new_json_file.open("w") as njfp:
@@ -216,12 +233,73 @@ def write_to_json_files(output_path: Path) -> int:
     return fails
 
 
-def write_output(output_format: str, output_path: Path) -> int:
+def write_to_influxdb(
+    influx_settings: Dict[str, Union[int, str]], output_path: Path
+) -> int:
+    from influxdb_client import InfluxDBClient  # type: ignore
+    from influxdb_client.client.write_api import SYNCHRONOUS  # type: ignore
+
+    json_results = None
+    for afile in output_path.iterdir():
+        json_results = _check_afile_and_parse(afile)
+        if not json_results:
+            continue
+
+    if not json_results:
+        LOG.error(f"No JSON files to parse + generate influxdb from in {output_path}")
+        return 9
+
+    current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    measurements: List[Dict] = []
+    # Count of protocol open ports
+    measurements.append(
+        {
+            "measurement": f"{json_results['protocol']}_open_ports",
+            "tags": {"address": json_results["address"]},
+            "time": current_time,
+            "fields": {"open_port_count": len(json_results["open_ports"])},
+        }
+    )
+    # Add each open port
+    proto_port_measurement_name = f"{json_results['protocol']}_open_port"
+    for port_name in json_results["open_ports"]:
+        port_int = int(port_name.split("/", 1)[0])
+        measurements.append(
+            {
+                "measurement": proto_port_measurement_name,
+                "tags": {"address": json_results["address"]},
+                "time": current_time,
+                "fields": {"open_port": port_int},
+            }
+        )
+
+    try:
+        with InfluxDBClient(
+            influx_settings["url"],
+            token=influx_settings["token"],
+            org=influx_settings["org"],
+        ) as client:
+            write_api = client.write_api(write_options=SYNCHRONOUS)
+            LOG.debug(f"Writing {measurements} to {influx_settings['bucket']}")
+            write_api.write(influx_settings["bucket"], measurements)
+    except Exception:
+        LOG.exception(f"Unable to write measurements to {influx_settings['url']}")
+        return 10
+
+    return 0
+
+
+def write_output(output_format: str, output_path: Path, output_config_file: str) -> int:
     match output_format:
         case "json":
             return write_to_json_files(output_path)
-        case "influx":
-            LOG.error("Not finished ... To come in a commit soon ...")
+        case "influxdb":
+            output_config_path = Path(output_config_file)
+            if not output_config_path.exists():
+                LOG.error(f"{output_config_path} does not exist.")
+                return 68
+
+            return write_to_influxdb(load_json_file(output_config_path), output_path)
         case other:
             LOG.error(
                 f"{other} is an invalid unsupported output format. Fix CLI arguments"
@@ -267,6 +345,12 @@ def write_output(output_format: str, output_path: Path) -> int:
     help="How long should we allow nmap to run",
 )
 @click.option(
+    "--output-config-file",
+    default="/etc/nmapscanner.json",
+    show_default=True,
+    help="JSON file with kwargs to pass to your output format function - e.g. influxdb",
+)
+@click.option(
     "--output-dir",
     default=f"{gettempdir()}{sep}nmapscanner_run_{datetime.now().strftime(DF)}",
     show_default=True,
@@ -291,6 +375,7 @@ def main(
     nmap: str,
     nmap_opts: Optional[str],
     nmap_timeout: int,
+    output_config_file: str,
     output_dir: str,
     output_format: str,
     prefixes: List[str],
@@ -310,10 +395,12 @@ def main(
     output_path.mkdir(exist_ok=True)
     LOG.debug(f"nmap output will go to {output_path}")
 
-    run_nmap(
+    if errors := run_nmap(
         prefixes, output_path, atonce, nmap_path, nmap_timeout, nmap_opts, all_ports
-    )
-    ctx.exit(write_output(output_format, output_path))
+    ):
+        ctx.exit(errors)
+
+    ctx.exit(write_output(output_format, output_path, output_config_file))
 
 
 if __name__ == "__main__":

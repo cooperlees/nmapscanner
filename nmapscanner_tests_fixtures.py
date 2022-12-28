@@ -10,6 +10,7 @@ NMAP_BIN = f"{sep}bin{sep}nmap"
 EXPECTED_NMAP_ALL_PORTS_CMDS = [
     [
         NMAP_BIN,
+        "-T5",
         "-6",
         "-p-",
         "-Pn",
@@ -20,6 +21,7 @@ EXPECTED_NMAP_ALL_PORTS_CMDS = [
     ],
     [
         NMAP_BIN,
+        "-T5",
         "-6",
         "-p-",
         "-Pn",
@@ -30,12 +32,31 @@ EXPECTED_NMAP_ALL_PORTS_CMDS = [
     ],
 ]
 EXPECTED_NMAP_DEFAULT_CMDS = [
-    [NMAP_BIN, "-6", "-Pn", "-sS", "-oX", f"{sep}tmp{sep}no{sep}69::69_TCP", "69::69"],
-    [NMAP_BIN, "-6", "-Pn", "-sU", "-oX", f"{sep}tmp{sep}no{sep}69::69_UDP", "69::69"],
+    [
+        NMAP_BIN,
+        "-T5",
+        "-6",
+        "-Pn",
+        "-sS",
+        "-oX",
+        f"{sep}tmp{sep}no{sep}69::69_TCP",
+        "69::69",
+    ],
+    [
+        NMAP_BIN,
+        "-T5",
+        "-6",
+        "-Pn",
+        "-sU",
+        "-oX",
+        f"{sep}tmp{sep}no{sep}69::69_UDP",
+        "69::69",
+    ],
 ]
 EXPECTED_NMAP_CUSTOM_CMD = [
     [
         NMAP_BIN,
+        "-T5",
         "-6",
         "-sU",
         "-p",

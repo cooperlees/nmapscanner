@@ -8,7 +8,7 @@ ptr_params = {
     "entry_point_module": "nmapscanner",
     "test_suite": "nmapscanner_tests",
     "test_suite_timeout": 300,
-    "required_coverage": {"nmapscanner.py": 59},
+    "required_coverage": {"nmapscanner.py": 45},
     "run_black": True,
     "run_flake8": True,
     "run_mypy": True,
@@ -25,5 +25,8 @@ setup(
     python_requires=">=3.10",
     install_requires=["click", "python-libnmap"],
     entry_points={"console_scripts": ["nmapscanner = nmapscanner:main"]},
-    test_suite="nmapscanner_tests",
+    extras_require={
+        "influxdb": ["influxdb-client"],
+    },
+    test_suite=ptr_params["test_suite"],
 )
