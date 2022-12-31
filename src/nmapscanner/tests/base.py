@@ -9,7 +9,8 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import patch
 
 import nmapscanner
-import nmapscanner_tests_fixtures as ntf
+
+from . import base_fixtures as bf
 
 
 class TestNts(unittest.TestCase):
@@ -25,7 +26,7 @@ class TestNts(unittest.TestCase):
             nmapscanner.generate_nmap_cmd(
                 ipaddr, output_path, nmap, timeout, None, False
             ),
-            ntf.EXPECTED_NMAP_DEFAULT_CMDS,
+            bf.EXPECTED_NMAP_DEFAULT_CMDS,
         )
 
         # Scan all the ports expected
@@ -33,7 +34,7 @@ class TestNts(unittest.TestCase):
             nmapscanner.generate_nmap_cmd(
                 ipaddr, output_path, nmap, timeout, None, True
             ),
-            ntf.EXPECTED_NMAP_ALL_PORTS_CMDS,
+            bf.EXPECTED_NMAP_ALL_PORTS_CMDS,
         )
 
         custom_args = ["-sU", "-p", "69"]
@@ -41,7 +42,7 @@ class TestNts(unittest.TestCase):
             nmapscanner.generate_nmap_cmd(
                 ipaddr, output_path, nmap, timeout, custom_args, False
             ),
-            ntf.EXPECTED_NMAP_CUSTOM_CMD,
+            bf.EXPECTED_NMAP_CUSTOM_CMD,
         )
 
     @patch("nmapscanner.time")
@@ -49,8 +50,8 @@ class TestNts(unittest.TestCase):
         # We need the time to be the same to match our fixtures
         mock_time.return_value = 0
         for xml, expected in (
-            (ntf.SAMPLE_NMAP_XML_TCP, ntf.EXPECTED_NMAP_DATA_TCP),
-            (ntf.SAMPLE_NMAP_XML_UDP, ntf.EXPECTED_NMAP_DATA_UDP),
+            (bf.SAMPLE_NMAP_XML_TCP, bf.EXPECTED_NMAP_DATA_TCP),
+            (bf.SAMPLE_NMAP_XML_UDP, bf.EXPECTED_NMAP_DATA_UDP),
         ):
             with NamedTemporaryFile("w", delete=False) as tf:
                 tf_path = Path(tf.name)
@@ -69,7 +70,7 @@ class TestNts(unittest.TestCase):
             td_path = Path(td)
             xml_file_path = td_path / "udp.xml"
             with xml_file_path.open("w") as xfp:
-                xfp.write(ntf.SAMPLE_NMAP_XML_UDP)
+                xfp.write(bf.SAMPLE_NMAP_XML_UDP)
 
             self.assertEqual(0, nmapscanner.write_to_json_files(td_path))
             found_json = False
