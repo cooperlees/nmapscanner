@@ -1,0 +1,7 @@
+{
+    "user": "nmapscanner",
+    "password": "nmapscanner",
+    "host": "fd00:70::35",
+    "port": 3306,
+    "database": "nmapscanner"
+}

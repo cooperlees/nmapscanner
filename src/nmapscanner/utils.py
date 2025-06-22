@@ -22,7 +22,7 @@ def get_nmap_result(nmap_xml_file: Path) -> dict:
     nmap_data: dict = {}
 
     nmap_report = NmapParser.parse_fromfile(str(nmap_xml_file))
-    # We should only ever have one host due to our parallell nmap runs get prefix
+    # We should only ever have one host due to our parallel nmap runs get prefix
     host = nmap_report.hosts.pop()
 
     nmap_data["endtime"] = int(host.endtime)
@@ -35,16 +35,12 @@ def get_nmap_result(nmap_xml_file: Path) -> dict:
     nmap_data["command"] = str(nmap_report.commandline)
     nmap_data["is_up"] = str(host.is_up())
     nmap_data["nmap_version"] = str(nmap_report.version)
+    nmap_data["open_ports"] = [f"{port}/{proto}" for port, proto in host.get_ports()]
     nmap_data["os"] = str(host.os)
     nmap_data["protocol"] = str(nmap_report._scaninfo["protocol"])
     nmap_data["services"] = str(nmap_report._scaninfo["services"])
     nmap_data["status"] = str(host.status)
     nmap_data["type"] = str(nmap_report._scaninfo["type"])
-
-    open_ports: list[str] = []
-    for port, proto in host.get_ports():
-        open_ports.append(f"{port}/{proto}")
-    nmap_data["open_ports"] = open_ports
 
     return nmap_data
 

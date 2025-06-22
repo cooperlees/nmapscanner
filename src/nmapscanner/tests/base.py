@@ -23,7 +23,13 @@ class TestNts(unittest.TestCase):
 
         self.assertEqual(
             nmapscanner.generate_nmap_cmd(
-                ipaddr, output_path, nmap, timeout, None, False
+                ipaddr,
+                output_path,
+                nmap,
+                timeout,
+                None,
+                False,
+                False,
             ),
             bf.EXPECTED_NMAP_DEFAULT_CMDS,
         )
@@ -31,7 +37,13 @@ class TestNts(unittest.TestCase):
         # Scan all the ports expected
         self.assertEqual(
             nmapscanner.generate_nmap_cmd(
-                ipaddr, output_path, nmap, timeout, None, True
+                ipaddr,
+                output_path,
+                nmap,
+                timeout,
+                None,
+                True,
+                False,
             ),
             bf.EXPECTED_NMAP_ALL_PORTS_CMDS,
         )
@@ -39,7 +51,13 @@ class TestNts(unittest.TestCase):
         custom_args = ["-sU", "-p", "69"]
         self.assertEqual(
             nmapscanner.generate_nmap_cmd(
-                ipaddr, output_path, nmap, timeout, custom_args, False
+                ipaddr,
+                output_path,
+                nmap,
+                timeout,
+                custom_args,
+                False,
+                False,
             ),
             bf.EXPECTED_NMAP_CUSTOM_CMD,
         )

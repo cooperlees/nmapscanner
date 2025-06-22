@@ -15,7 +15,7 @@ from time import time
 
 import click
 
-from . import influx, utils
+from . import influx, mariadb, utils
 
 
 DF = "%Y%m%d%H%M%S"
@@ -48,6 +48,7 @@ def generate_nmap_cmd(
     timeout: int,
     custom_args: list[str],
     all_ports: bool,
+    no_udp: bool,
 ) -> list[list[str]]:
     nmap_cmds: list[list[str]] = []
     nmap_base_cmd = [str(nmap), "-T5"]
@@ -66,6 +67,10 @@ def generate_nmap_cmd(
         nmap_cmds.append(nmap_cmd)
     else:
         for nmap_proto in ("-sS", "-sU"):
+            if no_udp and nmap_proto == "-sU":
+                LOG.debug("Skipping UDP for %s due to --no-udp" % ipnet.compressed)
+                continue
+
             nmap_cmd = copy(nmap_base_cmd)
             protocol = "TCP"
             if nmap_proto == "-sU":
@@ -87,9 +92,16 @@ def nmap_prefix(
     timeout: int,
     custom_args: list[str],
     all_ports: bool,
+    no_udp: bool,
 ) -> int:
     nmap_cmds = generate_nmap_cmd(
-        ipnet, output_path, nmap, timeout, custom_args, all_ports
+        ipnet,
+        output_path,
+        nmap,
+        timeout,
+        custom_args,
+        all_ports,
+        no_udp,
     )
     custom = " CUSTOM " if custom_args else " "
     for nmap_cmd in nmap_cmds:
@@ -128,6 +140,7 @@ def run_nmap(
     nmap_timeout: int,
     nmap_opts: str | None,
     all_ports: bool,
+    no_udp: bool,
 ) -> int:
     nmap_futures = []
 
@@ -147,6 +160,7 @@ def run_nmap(
                     nmap_timeout,
                     shell_safe_extra_ops,
                     all_ports,
+                    no_udp,
                 )
             )
 
@@ -190,7 +204,14 @@ def write_to_json_files(output_path: Path) -> int:
     return fails
 
 
+# TODO: Change output_config_file to a Path from arg
 def write_output(output_format: str, output_path: Path, output_config_file: str) -> int:
+    if output_format != "json":
+        output_config_path = Path(output_config_file)
+        if not output_config_path.exists():
+            LOG.error(f"{output_config_path} does not exist.")
+            return 68
+
     match output_format:
         case "json":
             errors = write_to_json_files(output_path)
@@ -198,12 +219,9 @@ def write_output(output_format: str, output_path: Path, output_config_file: str)
                 print(f"--> JSON files written to {output_path}")
             return errors
         case "influxdb":
-            output_config_path = Path(output_config_file)
-            if not output_config_path.exists():
-                LOG.error(f"{output_config_path} does not exist.")
-                return 68
-
-            return influx.write_to_influxdb(
+            return influx.write(utils.load_json_file(output_config_path), output_path)
+        case "mariadb":
+            return mariadb.write(  # type: ignore
                 utils.load_json_file(output_config_path), output_path
             )
         case other:
@@ -251,6 +269,12 @@ def write_output(output_format: str, output_path: Path, output_config_file: str)
     help="How long should we allow nmap to run",
 )
 @click.option(
+    "--no-udp",
+    is_flag=True,
+    show_default=True,
+    help="Skip UDP scans (slow)",
+)
+@click.option(
     "--output-config-file",
     default="/etc/nmapscanner.json",
     show_default=True,
@@ -281,6 +305,7 @@ def main(
     nmap: str,
     nmap_opts: str | None,
     nmap_timeout: int,
+    no_udp: bool,
     output_config_file: str,
     output_dir: str,
     output_format: str,
@@ -302,7 +327,14 @@ def main(
     LOG.debug(f"nmap output will go to {output_path}")
 
     if errors := run_nmap(
-        prefixes, output_path, atonce, nmap_path, nmap_timeout, nmap_opts, all_ports
+        prefixes,
+        output_path,
+        atonce,
+        nmap_path,
+        nmap_timeout,
+        nmap_opts,
+        all_ports,
+        no_udp,
     ):
         ctx.exit(errors)
 

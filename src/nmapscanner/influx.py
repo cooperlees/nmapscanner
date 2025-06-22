@@ -8,7 +8,7 @@ from . import utils
 LOG = logging.getLogger(__name__)
 
 
-def write_to_influxdb(influx_settings: dict[str, int | str], output_path: Path) -> int:
+def write(influx_settings: dict[str, int | str], output_path: Path) -> int:
     # Import here so we only try import if we want influx
     from influxdb_client import InfluxDBClient  # type: ignore
     from influxdb_client.client.write_api import SYNCHRONOUS  # type: ignore

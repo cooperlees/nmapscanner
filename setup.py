@@ -24,7 +24,5 @@ setup(
     python_requires=">=3.13",
     install_requires=["click", "python-libnmap"],
     entry_points={"console_scripts": ["nmapscanner = nmapscanner:main"]},
-    extras_require={
-        "influxdb": ["influxdb-client"],
-    },
+    extras_require={"influxdb": ["influxdb-client"], "mariadb": ["mariadb"]},
 )

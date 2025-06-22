@@ -1,15 +1,15 @@
-FROM python:3
+FROM python:3-slim
 
-RUN mkdir -p /src
+RUN apt update && apt install -y nmap gcc libmariadb-dev
+
+RUN mkdir -p /src/src/nmapscanner/tests
 ADD setup.py /src
-ADD nmapscanner.py /src
-ADD nmapscanner_tests.py /src
-ADD nmapscanner_tests_fixtures.py /src
+ADD src/nmapscanner/*.py /src/src/nmapscanner
+ADD src/nmapscanner/tests/*.py /src/src/nmapscanner/tests
 
-RUN pip install --upgrade pip setuptools
-RUN cd /src && pip install .
+RUN pip install --no-cache-dir --upgrade pip setuptools
+RUN cd /src && pip install .[mariadb]
 
-RUN apt-get update
-RUN apt-get install -y nmap
+RUN apt remove -y gcc libmariadb-dev && apt clean all
 
 CMD ["nmapscanner", "--help"]
