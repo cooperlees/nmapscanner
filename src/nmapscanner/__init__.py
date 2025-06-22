@@ -9,7 +9,7 @@ from datetime import datetime
 from ipaddress import ip_network, IPv4Network, IPv6Network
 from os import sep
 from pathlib import Path
-from subprocess import PIPE, run, SubprocessError
+from subprocess import CalledProcessError, PIPE, run
 from tempfile import gettempdir
 from time import time
 
@@ -108,9 +108,9 @@ def nmap_prefix(
                     encoding="utf8",
                 )
             )
-        except SubprocessError as spe:
-            LOG.error(f"{ipnet} - \"{' '.join(nmap_cmd)}\" FAILED: {spe}")
-            LOG.debug(f"nmap stderr: '{spe.stderr}'")
+        except CalledProcessError as cpe:
+            LOG.error(f"{ipnet} - \"{' '.join(nmap_cmd)}\" FAILED: {cpe}")
+            LOG.debug(f"nmap stderr: '{cpe.stderr}'")
             err += 1
             continue
 
