@@ -99,11 +99,18 @@ def nmap_prefix(
         LOG.info(f"{ipnet} -{custom}'{friendly_nmap_cmd}' starting")
         try:
             LOG.debug(
-                run(nmap_cmd, stdout=PIPE, stderr=PIPE, timeout=timeout, check=True)
+                run(
+                    nmap_cmd,
+                    stdout=PIPE,
+                    stderr=PIPE,
+                    timeout=timeout,
+                    check=True,
+                    encoding="utf8",
+                )
             )
         except SubprocessError as spe:
             LOG.error(f"{ipnet} - \"{' '.join(nmap_cmd)}\" FAILED: {spe}")
-            LOG.debug("Are you running as root / with capabilities?")
+            LOG.debug(f"nmap stderr: '{spe.stderr}'")
             err += 1
             continue
 
