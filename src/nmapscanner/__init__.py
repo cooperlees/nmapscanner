@@ -12,7 +12,7 @@ from pathlib import Path
 from subprocess import PIPE, run, SubprocessError
 from tempfile import gettempdir
 from time import time
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import click
 from libnmap.parser import NmapParser  # type: ignore
@@ -37,9 +37,9 @@ def _handle_debug(
     return debug
 
 
-def get_nmap_result(nmap_xml_file: Path) -> Dict:
+def get_nmap_result(nmap_xml_file: Path) -> dict:
     """Turn the NMAP results into a scuba friendly JSON object"""
-    nmap_data: Dict = {}
+    nmap_data: dict = {}
 
     nmap_report = NmapParser.parse_fromfile(str(nmap_xml_file))
     # We should only ever have one host due to our parallell nmap runs get prefix
@@ -61,7 +61,7 @@ def get_nmap_result(nmap_xml_file: Path) -> Dict:
     nmap_data["status"] = str(host.status)
     nmap_data["type"] = str(nmap_report._scaninfo["type"])
 
-    open_ports: List[str] = []
+    open_ports: list[str] = []
     for port, proto in host.get_ports():
         open_ports.append(f"{port}/{proto}")
     nmap_data["open_ports"] = open_ports
@@ -69,7 +69,7 @@ def get_nmap_result(nmap_xml_file: Path) -> Dict:
     return nmap_data
 
 
-def load_json_file(jf: Path) -> Dict:
+def load_json_file(jf: Path) -> dict:
     try:
         with jf.open("r") as jfp:
             return json.load(jfp)
@@ -87,10 +87,10 @@ def generate_nmap_cmd(
     output_path: Path,
     nmap: Path,
     timeout: int,
-    custom_args: List[str],
+    custom_args: list[str],
     all_ports: bool,
-) -> List[List[str]]:
-    nmap_cmds: List[List[str]] = []
+) -> list[list[str]]:
+    nmap_cmds: list[list[str]] = []
     nmap_base_cmd = [str(nmap), "-T5"]
     if ipnet.version == 6:
         nmap_base_cmd.append("-6")
@@ -126,7 +126,7 @@ def nmap_prefix(
     output_path: Path,
     nmap: Path,
     timeout: int,
-    custom_args: List[str],
+    custom_args: list[str],
     all_ports: bool,
 ) -> int:
     nmap_cmds = generate_nmap_cmd(
@@ -155,7 +155,7 @@ def nmap_prefix(
 
 
 def run_nmap(
-    prefixes: List[str],
+    prefixes: list[str],
     output_path: Path,
     atonce: int,
     nmap: Path,
@@ -165,7 +165,7 @@ def run_nmap(
 ) -> int:
     nmap_futures = []
 
-    shell_safe_extra_ops: List[str] = []
+    shell_safe_extra_ops: list[str] = []
     if nmap_opts:
         shell_safe_extra_ops = shlex.split(nmap_opts)
 
@@ -205,7 +205,7 @@ def run_nmap(
         return 0
 
 
-def _check_afile_and_parse(afile: Path) -> Dict:
+def _check_afile_and_parse(afile: Path) -> dict:
     if not afile.is_file() or afile.name.endswith(".json"):
         return {}
 
@@ -233,7 +233,7 @@ def write_to_json_files(output_path: Path) -> int:
 
 
 def write_to_influxdb(
-    influx_settings: Dict[str, Union[int, str]], output_path: Path
+    influx_settings: dict[str, Union[int, str]], output_path: Path
 ) -> int:
     from influxdb_client import InfluxDBClient  # type: ignore
     from influxdb_client.client.write_api import SYNCHRONOUS  # type: ignore
@@ -249,7 +249,7 @@ def write_to_influxdb(
         return 9
 
     current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    measurements: List[Dict] = []
+    measurements: list[dict] = []
     # Count of protocol open ports
     measurements.append(
         {
@@ -380,7 +380,7 @@ def main(
     output_config_file: str,
     output_dir: str,
     output_format: str,
-    prefixes: List[str],
+    prefixes: list[str],
 ) -> None:
     nmap_path = Path(nmap)
     if not nmap_path.exists():
