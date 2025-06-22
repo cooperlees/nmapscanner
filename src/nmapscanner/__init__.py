@@ -12,10 +12,10 @@ from pathlib import Path
 from subprocess import PIPE, run, SubprocessError
 from tempfile import gettempdir
 from time import time
-from typing import Optional, Union
 
 import click
-from libnmap.parser import NmapParser  # type: ignore
+
+from . import influx, utils
 
 
 DF = "%Y%m%d%H%M%S"
@@ -25,9 +25,9 @@ OUTPUT_FORMATS = ("influxdb", "json")
 
 def _handle_debug(
     ctx: click.core.Context,
-    param: Union[click.core.Option, click.core.Parameter],
-    debug: Union[bool, int, str],
-) -> Union[bool, int, str]:
+    param: click.core.Option | click.core.Parameter,
+    debug: bool | int | str,
+) -> bool | int | str:
     """Turn on debugging if asked otherwise INFO default"""
     log_level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(
@@ -37,53 +37,12 @@ def _handle_debug(
     return debug
 
 
-def get_nmap_result(nmap_xml_file: Path) -> dict:
-    """Turn the NMAP results into a scuba friendly JSON object"""
-    nmap_data: dict = {}
-
-    nmap_report = NmapParser.parse_fromfile(str(nmap_xml_file))
-    # We should only ever have one host due to our parallell nmap runs get prefix
-    host = nmap_report.hosts.pop()
-
-    nmap_data["endtime"] = int(host.endtime)
-    nmap_data["numservices"] = int(nmap_report._scaninfo["numservices"])
-    nmap_data["scanruntime"] = int(host.endtime) - int(host.starttime)
-    nmap_data["starttime"] = int(host.starttime)
-    nmap_data["time"] = int(time())
-
-    nmap_data["address"] = str(host.address)
-    nmap_data["command"] = str(nmap_report.commandline)
-    nmap_data["is_up"] = str(host.is_up())
-    nmap_data["nmap_version"] = str(nmap_report.version)
-    nmap_data["os"] = str(host.os)
-    nmap_data["protocol"] = str(nmap_report._scaninfo["protocol"])
-    nmap_data["services"] = str(nmap_report._scaninfo["services"])
-    nmap_data["status"] = str(host.status)
-    nmap_data["type"] = str(nmap_report._scaninfo["type"])
-
-    open_ports: list[str] = []
-    for port, proto in host.get_ports():
-        open_ports.append(f"{port}/{proto}")
-    nmap_data["open_ports"] = open_ports
-
-    return nmap_data
-
-
-def load_json_file(jf: Path) -> dict:
-    try:
-        with jf.open("r") as jfp:
-            return json.load(jfp)
-    except (json.JSONDecodeError, OSError):
-        LOG.exception(f"Failure to load {jf}")
-    return {}
-
-
 def sanitize_filename(filename: str) -> str:
     return filename.replace("/", "_")
 
 
 def generate_nmap_cmd(
-    ipnet: Union[IPv4Network, IPv6Network],
+    ipnet: IPv4Network | IPv6Network,
     output_path: Path,
     nmap: Path,
     timeout: int,
@@ -122,7 +81,7 @@ def generate_nmap_cmd(
 
 
 def nmap_prefix(
-    ipnet: Union[IPv4Network, IPv6Network],
+    ipnet: IPv4Network | IPv6Network,
     output_path: Path,
     nmap: Path,
     timeout: int,
@@ -160,7 +119,7 @@ def run_nmap(
     atonce: int,
     nmap: Path,
     nmap_timeout: int,
-    nmap_opts: Optional[str],
+    nmap_opts: str | None,
     all_ports: bool,
 ) -> int:
     nmap_futures = []
@@ -205,19 +164,11 @@ def run_nmap(
         return 0
 
 
-def _check_afile_and_parse(afile: Path) -> dict:
-    if not afile.is_file() or afile.name.endswith(".json"):
-        return {}
-
-    # Write out JSON along side ugly XML
-    return get_nmap_result(afile)
-
-
 def write_to_json_files(output_path: Path) -> int:
     """Output the scan result to JSON files"""
     fails = 0
     for afile in output_path.iterdir():
-        json_results = _check_afile_and_parse(afile)
+        json_results = utils.check_afile_and_parse(afile)
         if not json_results:
             continue
 
@@ -230,62 +181,6 @@ def write_to_json_files(output_path: Path) -> int:
             fails += 1
 
     return fails
-
-
-def write_to_influxdb(
-    influx_settings: dict[str, Union[int, str]], output_path: Path
-) -> int:
-    from influxdb_client import InfluxDBClient  # type: ignore
-    from influxdb_client.client.write_api import SYNCHRONOUS  # type: ignore
-
-    json_results = None
-    for afile in output_path.iterdir():
-        json_results = _check_afile_and_parse(afile)
-        if not json_results:
-            continue
-
-    if not json_results:
-        LOG.error(f"No JSON files to parse + generate influxdb from in {output_path}")
-        return 9
-
-    current_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    measurements: list[dict] = []
-    # Count of protocol open ports
-    measurements.append(
-        {
-            "measurement": f"{json_results['protocol']}_open_ports",
-            "tags": {"address": json_results["address"]},
-            "time": current_time,
-            "fields": {"open_port_count": len(json_results["open_ports"])},
-        }
-    )
-    # Add each open port
-    proto_port_measurement_name = f"{json_results['protocol']}_open_port"
-    for port_name in json_results["open_ports"]:
-        port_int = int(port_name.split("/", 1)[0])
-        measurements.append(
-            {
-                "measurement": proto_port_measurement_name,
-                "tags": {"address": json_results["address"]},
-                "time": current_time,
-                "fields": {"open_port": port_int},
-            }
-        )
-
-    try:
-        with InfluxDBClient(
-            influx_settings["url"],
-            token=influx_settings["token"],
-            org=influx_settings["org"],
-        ) as client:
-            write_api = client.write_api(write_options=SYNCHRONOUS)
-            LOG.debug(f"Writing {measurements} to {influx_settings['bucket']}")
-            write_api.write(influx_settings["bucket"], measurements)
-    except Exception:
-        LOG.exception(f"Unable to write measurements to {influx_settings['url']}")
-        return 10
-
-    return 0
 
 
 def write_output(output_format: str, output_path: Path, output_config_file: str) -> int:
@@ -301,7 +196,9 @@ def write_output(output_format: str, output_path: Path, output_config_file: str)
                 LOG.error(f"{output_config_path} does not exist.")
                 return 68
 
-            return write_to_influxdb(load_json_file(output_config_path), output_path)
+            return influx.write_to_influxdb(
+                utils.load_json_file(output_config_path), output_path
+            )
         case other:
             LOG.error(
                 f"{other} is an invalid unsupported output format. Fix CLI arguments"
@@ -375,7 +272,7 @@ def main(
     atonce: int,
     debug: bool,
     nmap: str,
-    nmap_opts: Optional[str],
+    nmap_opts: str | None,
     nmap_timeout: int,
     output_config_file: str,
     output_dir: str,

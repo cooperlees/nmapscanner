@@ -44,7 +44,7 @@ class TestNts(unittest.TestCase):
             bf.EXPECTED_NMAP_CUSTOM_CMD,
         )
 
-    @patch("nmapscanner.time")
+    @patch("nmapscanner.utils.time")
     def test_get_nmap_result(self, mock_time) -> None:
         # We need the time to be the same to match our fixtures
         mock_time.return_value = 0
@@ -57,7 +57,7 @@ class TestNts(unittest.TestCase):
                 tf.write(xml)
                 tf.close()
 
-                nmap_data = nmapscanner.get_nmap_result(tf_path)
+                nmap_data = nmapscanner.utils.get_nmap_result(tf_path)
                 self.assertEqual(nmap_data, expected)
                 # Test we're JSON seralizable
                 self.assertTrue(dumps(nmap_data))
