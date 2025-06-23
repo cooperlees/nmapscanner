@@ -79,7 +79,7 @@ def _insert_scan_results(conn, cursor, output_path) -> int:
         LOG.error(f"No nmap xml files to parse in {output_path} for mariadb write")
         return 9
 
-    for result in results:
+    for idx, result in enumerate(results):
         values = (
             result["address"],
             result["command"],
@@ -99,6 +99,11 @@ def _insert_scan_results(conn, cursor, output_path) -> int:
         )
         cursor.execute(INSERT_SCAN_SQL.format(table=TABLE_NAME), values)
         conn.commit()
+
+    LOG.info(
+        f"Inserted {idx + 1} scan result(s) of {len(results)} into {TABLE_NAME} table"
+    )
+    return 0
 
 
 def write(settings: dict, output_path: Path) -> int:
