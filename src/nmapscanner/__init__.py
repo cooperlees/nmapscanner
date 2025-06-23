@@ -9,7 +9,7 @@ from datetime import datetime
 from ipaddress import ip_network, IPv4Network, IPv6Network
 from os import sep
 from pathlib import Path
-from subprocess import CalledProcessError, PIPE, run
+from subprocess import CalledProcessError, run
 from tempfile import gettempdir
 from time import time
 
@@ -113,8 +113,7 @@ def nmap_prefix(
             LOG.debug(
                 run(
                     nmap_cmd,
-                    stdout=PIPE,
-                    stderr=PIPE,
+                    capture_output=True,
                     timeout=timeout,
                     check=True,
                     encoding="utf8",
