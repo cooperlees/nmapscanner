@@ -64,7 +64,9 @@ def _create_mariadb_table(cursor) -> None:
 
 def _insert_scan_results(conn, cursor, output_path) -> int:
     def _unix_to_datetime(ts: int) -> str:
-        return datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.fromtimestamp(ts, tz=datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
     results: list[dict] = []
     for afile in output_path.iterdir():
