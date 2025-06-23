@@ -18,7 +18,7 @@ We have extra insallers to pull in non JSON output storage.
 This tool is to run from a scanning host and scan hosts you define on via the CLI.
 For example, to scan a host and write out JSON files with the results (default)
 
-- `[sudo] nmapscanner [--debug] [--no-udp] --output-dir /tmp/nmapscanner_output_testing HOST_IP`
+- `[sudo] nmapscanner [--debug] [--no-udp] --output-dir /tmp/nmapscanner_output_testing HOST_IP [HOST_IP2 ...]`
   - We don't support hostnames, and only IP addresses so we are more explicit here
 
 We also support:
