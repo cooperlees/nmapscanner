@@ -24,6 +24,7 @@ CREATE TABLE {table} (
   nmap_version VARCHAR(10) NOT NULL,
   numservices INT UNSIGNED NOT NULL,
   open_ports JSON NOT NULL,
+  open_ports_count INT UNSIGNED NOT NULL,
   os TEXT,
   protocol VARCHAR(10) NOT NULL,
   scanruntime INT UNSIGNED NOT NULL,
@@ -41,9 +42,24 @@ CREATE TABLE {table} (
 
 INSERT_SCAN_SQL = """\
 INSERT INTO {table} (
-  address, command, endtime, is_up, nmap_version, numservices, open_ports, os, protocol, scanruntime, services, starttime, status, time, type
+  address,
+  command,
+  endtime,
+  is_up,
+  nmap_version,
+  numservices,
+  open_ports,
+  open_ports_count,
+  os,
+  protocol,
+  scanruntime,
+  services,
+  starttime,
+  status,
+  time,
+  type
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 """
 
@@ -82,6 +98,7 @@ def _insert_scan_results(conn, cursor, output_path) -> int:
             result["nmap_version"],
             result["numservices"],
             json.dumps(result["open_ports"]),
+            len(result["open_ports"]),
             result["os"],
             result["protocol"],
             result["scanruntime"],
