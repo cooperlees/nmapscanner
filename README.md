@@ -67,6 +67,17 @@ For testing we use [ptr](https://github.com/facebookincubator/ptr/).
 
 # Docker
 
+On Dockerhub: https://hub.docker.com/r/cooperlees/nmapscanner
+
 To build:
 
 - `cooper@l33t:~/repos/nmapscanner$ docker build --network host -t nmapscanner_devel .`
+
+# Grafana
+
+More to come, but this data was made to use with Grafana to vizualize + alert on found open
+port changes.
+
+Example dashbaord:
+
+![Image](https://github.com/user-attachments/assets/35d73f15-9e5b-47d6-8fbc-9da076dff009)
