@@ -111,6 +111,7 @@ def write(settings: dict, output_path: Path) -> int:
     import mariadb
 
     try:
+        LOG.info("Connecting to MariaDB with settings: %s", settings)
         with mariadb.connect(**settings) as conn:
             with conn.cursor() as cursor:
                 _create_mariadb_table(cursor)
