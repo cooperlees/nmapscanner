@@ -110,13 +110,9 @@ def write(settings: dict, output_path: Path) -> int:
     """Parse all the nmap XML output + write into mysql"""
     import mariadb
 
-    try:
-        LOG.info("Connecting to MariaDB with settings: %s", settings)
-        with mariadb.connect(**settings) as conn:
-            with conn.cursor() as cursor:
-                _create_mariadb_table(cursor)
-                # For each file, pase and insert into DB
-                return _insert_scan_results(conn, cursor, output_path)
-    except mariadb.Error as me:
-        LOG.error(f"Error with MariaDB: {me}")
-        return 69  # TODO: See if the exception has an error number
+    LOG.info("Connecting to MariaDB with settings: %s", settings)
+    with mariadb.connect(**settings) as conn:
+        with conn.cursor() as cursor:
+            _create_mariadb_table(cursor)
+            # For each file, pase and insert into DB
+            return _insert_scan_results(conn, cursor, output_path)
