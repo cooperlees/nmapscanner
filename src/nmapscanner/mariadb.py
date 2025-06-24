@@ -3,7 +3,6 @@
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 from . import utils
@@ -63,11 +62,6 @@ def _create_mariadb_table(cursor) -> None:
 
 
 def _insert_scan_results(conn, cursor, output_path) -> int:
-    def _unix_to_datetime(ts: int) -> str:
-        return datetime.fromtimestamp(ts, tz=datetime.timezone.utc).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-
     results: list[dict] = []
     for afile in output_path.iterdir():
         scan_results = utils.check_afile_and_parse(afile)
@@ -83,7 +77,7 @@ def _insert_scan_results(conn, cursor, output_path) -> int:
         values = (
             result["address"],
             result["command"],
-            _unix_to_datetime(result["endtime"]),
+            utils.unix_to_datetime(result["endtime"]),
             True if result["is_up"] == "True" else False,
             result["nmap_version"],
             result["numservices"],
@@ -92,9 +86,9 @@ def _insert_scan_results(conn, cursor, output_path) -> int:
             result["protocol"],
             result["scanruntime"],
             result["services"],
-            _unix_to_datetime(result["starttime"]),
+            utils.unix_to_datetime(result["starttime"]),
             result["status"],
-            _unix_to_datetime(result["time"]),
+            utils.unix_to_datetime(result["time"]),
             result["type"],
         )
         cursor.execute(INSERT_SCAN_SQL.format(table=TABLE_NAME), values)

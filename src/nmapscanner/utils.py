@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 from pathlib import Path
@@ -52,3 +53,9 @@ def load_json_file(jf: Path) -> dict:
     except (json.JSONDecodeError, OSError):
         LOG.exception(f"Failure to load {jf}")
     return {}
+
+
+def unix_to_datetime(ts: int) -> str:
+    return datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )

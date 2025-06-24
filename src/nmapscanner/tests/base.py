@@ -11,8 +11,11 @@ import nmapscanner
 
 from . import base_fixtures as bf
 
+# Importing other tests to run
+from .utils import TestUtils  # noqa: F401
 
-class TestNts(unittest.TestCase):
+
+class TestBase(unittest.TestCase):
     maxDiff = 20000
 
     def test_generate_nmap_cmd(self) -> None:
